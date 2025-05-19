@@ -2,11 +2,14 @@
   <div class="python-ide">
     <div class="editor-panel">
       <div class="toolbar">
+         <button @click="createNewFile">New File</button>
+        <button @click="saveTempFile">Save</button>
         <button @click="runCode" :disabled="isRunning">
           {{ isRunning ? 'Running...' : 'Run (F5)' }}
         </button>
-       
+        <span class="filename">{{ currentFilename }}</span>
       </div>
+      
       <div ref="editorElement" class="editor"></div>
     </div>
     <h1>Terminal Output</h1>
@@ -30,7 +33,10 @@ export default {
     // Editor setup
     const editorElement = ref(null)
     const editorView = ref(null)
-    const code = ref('# Welcome to Python IDE!\nprint("Hello, World!")\n')
+     const currentFilename = ref('main.py')
+    const files = ref({
+      'main.py': '# Welcome to Python IDE!\nprint("Hello, World!")\n'
+    })
 
     // Terminal setup
     const terminalElement = ref(null)
@@ -42,12 +48,12 @@ export default {
     // UI state
     const theme = ref('light')
     const isRunning = ref(false)
-
+   
     // Initialize editor
     const initEditor = () => {
       editorView.value = new EditorView({
         state: EditorState.create({
-          doc: code.value,
+          doc: files.value[currentFilename.value],
           extensions: [
             python(),
             theme.value === 'dark' ? oneDark : [],
@@ -58,6 +64,11 @@ export default {
               {
                 key: 'F5',
                 run: runCode
+              },
+              {
+                key: 'Ctrl-s',
+                run: saveTempFile,
+                preventDefault: true
               }
             ]),
             EditorView.lineWrapping
@@ -65,6 +76,34 @@ export default {
         }),
         parent: editorElement.value
       })
+    }
+
+    // Create new temporary file
+    const createNewFile = () => {
+      const filename = `temp_${Date.now()}.py`
+      files.value[filename] = '# New Python File\n\n'
+      currentFilename.value = filename
+      refreshEditor()
+    }
+
+    // Save current file
+    const saveTempFile = () => {
+      if (!editorView.value) return
+      files.value[currentFilename.value] = editorView.value.state.doc.toString()
+      addToTerminal(`Saved ${currentFilename.value}\n${prompt.value}`)
+      return true
+    }
+    // Refresh editor with current file content
+    const refreshEditor = () => {
+      if (editorView.value) {
+        editorView.value.dispatch({
+          changes: {
+            from: 0,
+            to: editorView.value.state.doc.length,
+            insert: files.value[currentFilename.value] || ''
+          }
+        })
+      }
     }
 
     // Initialize terminal
@@ -112,43 +151,79 @@ export default {
     }
 
     // Run Python code
+   // Replace the mockPythonExecution function with:
+// const executePythonCode = async (code) => {
+  
+//     const formData = new FormData()
+//     formData.append('code', code)
+    
+//     const response = await fetch('http://localhost:8000/editor/execute/', {
+//       method: 'POST',
+//       body: formData
+//     })
+    
+//     const result = await response.json()
+    
+//     if (result.error) {
+//       throw new Error(result.output)
+//     }
+    
+//     return result.output
+  
+// }
+
+// Run Python code with temporary file creation
     const runCode = async () => {
       if (!editorView.value) return
       
       isRunning.value = true
-      const codeToRun = editorView.value.state.doc.toString()
+      await saveTempFile() // Save before running
+      const codeToRun = files.value[currentFilename.value]
       
-      // Add to terminal
-      addToTerminal(`Running code:\n${codeToRun}\n`)
+      addToTerminal(`Running ${currentFilename.value}:\n`)
       
       try {
-        // In a real app, you would send to a Python backend
-        const result = await mockPythonExecution(codeToRun)
-        addToTerminal(result + '\n' + prompt.value)
+        const formData = new FormData()
+        formData.append('code', codeToRun)
+        formData.append('filename', currentFilename.value)
+        
+        const response = await fetch('http://localhost:8000/editor/execute/', {
+          method: 'POST',
+          body: formData
+        })
+        
+        const result = await response.json()
+        
+        if (result.error) {
+          throw new Error(result.output)
+        }
+        
+        addToTerminal(`${result.output}\n${prompt.value}`)
       } catch (err) {
-        addToTerminal(`Error: ${err.message}\n` + prompt.value)
+        addToTerminal(`Error: ${err.message}\n${prompt.value}`)
       } finally {
         isRunning.value = false
       }
       return true
     }
 
-    // Mock Python execution
-    const mockPythonExecution = (code) => {
-      return new Promise((resolve) => {
-        setTimeout(() => {
-          if (code.includes('print(')) {
-            const matches = code.match(/print\(([^)]+)\)/g)
-            if (matches) {
-              resolve(matches.map(m => 
-                m.replace(/print\((['"]?)(.+?)\1\)/, '$2')
-              ).join('\n'))
-            }
-          }
-          resolve("Code executed successfully (mock implementation)")
-        }, 500)
-      })
-    }
+
+    // // Mock Python execution
+    // const mockPythonExecution = (code) => {
+    //   return new Promise((resolve) => {
+    //     setTimeout(() => {
+    //       if (code.includes('print(')) {
+    //         const matches = code.match(/print\(([^)]+)\)/g)
+    //         if (matches) {
+    //           resolve(matches.map(m => 
+    //             m.replace(/print\((['"]?)(.+?)\1\)/, '$2')
+    //           ).join('\n'))
+    //         }
+    //       }
+    //       resolve("Code executed successfully (mock implementation)")
+    //     }, 500)
+    //   })
+    // }
 
     // Terminal functions
     const addToTerminal = (text) => {
@@ -291,7 +366,10 @@ export default {
       terminalElement,
       theme,
       isRunning,
-      runCode
+      runCode,
+      createNewFile,
+      saveTempFile,
+      currentFilename
     }
   }
 }
@@ -385,5 +463,11 @@ h1 {
   margin: 0;
   background: #2d2d2d;
   color: white;
+}
+.filename {
+  margin-left: auto;
+  padding: 0 10px;
+  color: #aaa;
+  font-family: monospace;
 }
 </style>
