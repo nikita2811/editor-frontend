@@ -2,7 +2,6 @@ const { defineConfig } = require('@vue/cli-service')
 module.exports = defineConfig({
   transpileDependencies: true,
   devServer: {
-    public: 'code-editor-1-7n1e.onrender.com/',
     allowedHosts: [
       'localhost',
       'code-editor-1-7n1e.onrender.com/', // Allow subdomains
