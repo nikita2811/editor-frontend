@@ -173,39 +173,55 @@ export default {
 // }
 
 // Run Python code with temporary file creation
-    const runCode = async () => {
-      if (!editorView.value) return
-      
-      isRunning.value = true
-      await saveTempFile() // Save before running
-      const codeToRun = files.value[currentFilename.value]
-      
-      addToTerminal(`Running ${currentFilename.value}:\n`)
-      
-      try {
-        const formData = new FormData()
-        formData.append('code', codeToRun)
-        formData.append('filename', currentFilename.value)
-        
-        const response = await fetch('http://localhost:8000/editor/execute/', {
-          method: 'POST',
-          body: formData
-        })
-        
-        const result = await response.json()
-        
-        if (result.error) {
-          throw new Error(result.output)
-        }
-        
-        addToTerminal(`${result.output}\n${prompt.value}`)
-      } catch (err) {
-        addToTerminal(`Error: ${err.message}\n${prompt.value}`)
-      } finally {
-        isRunning.value = false
-      }
-      return true
+ 
+   // In PythonIDE.vue
+const executeInDocker = async (code) => {
+  const formData = new FormData()
+  formData.append('code', code)
+  
+  try {
+    const response = await fetch('http://localhost:8000/api/docker/execute/', {
+      method: 'POST',
+      body: formData
+    })
+    
+    if (!response.ok) {
+      throw new Error('Failed to connect to execution service')
     }
+    
+    // Stream the response
+    const reader = response.body.getReader()
+    const decoder = new TextDecoder()
+    
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      
+      const text = decoder.decode(value)
+      addToTerminal(text)
+    }
+    
+    addToTerminal(prompt.value)
+  } catch (err) {
+    addToTerminal(`Error: ${err.message}\n${prompt.value}`)
+  }
+}
+
+// Update runCode to use executeInDocker
+const runCode = async () => {
+  if (!editorView.value) return
+  
+  isRunning.value = true
+  await saveTempFile()
+  
+  addToTerminal(`Running ${currentFilename.value} in Docker...\n`)
+  
+  try {
+    await executeInDocker(files.value[currentFilename.value])
+  } finally {
+    isRunning.value = false
+  }
+} 
 
 
     // // Mock Python execution
