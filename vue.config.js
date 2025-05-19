@@ -4,6 +4,6 @@ module.exports = defineConfig({
   devServer: {
     port: 8080,
     allowedHosts: 'all', // <- this is the key line
-    host: '0.0.0.0.0', // <- this is the key line
+    host: '0.0.0.0', // <- this is the key line
   }
 })
