@@ -180,7 +180,7 @@ const executeInDocker = async (code) => {
   formData.append('code', code)
   
   try {
-    const response = await fetch('http://localhost:8000/api/docker/execute/', {
+    const response = await fetch('https://code-editor-7erw.onrender.com/editor/execute/', {
       method: 'POST',
       body: formData
     })
