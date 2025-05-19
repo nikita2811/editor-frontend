@@ -173,35 +173,29 @@ export default {
 // }
 
 // Run Python code with temporary file creation
- 
-   // In PythonIDE.vue
+    // In PythonIDE.vue
 const executeInDocker = async (code) => {
   const formData = new FormData()
   formData.append('code', code)
   
   try {
+   console.log('Executing code in Docker...')
     const response = await fetch('https://code-editor-7erw.onrender.com/editor/execute/', {
       method: 'POST',
       body: formData
     })
     
     if (!response.ok) {
-      throw new Error('Failed to connect to execution service')
+      throw new Error('Network response was not ok')
     }
     
-    // Stream the response
-    const reader = response.body.getReader()
-    const decoder = new TextDecoder()
+    const result = await response.json()
     
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-      
-      const text = decoder.decode(value)
-      addToTerminal(text)
+    if (result.error) {
+      throw new Error(result.output)
     }
     
-    addToTerminal(prompt.value)
+    addToTerminal(`\n${result.output}\n${prompt.value}`)
   } catch (err) {
     addToTerminal(`Error: ${err.message}\n${prompt.value}`)
   }
@@ -221,7 +215,7 @@ const runCode = async () => {
   } finally {
     isRunning.value = false
   }
-} 
+}
 
 
     // // Mock Python execution
@@ -242,17 +236,21 @@ const runCode = async () => {
     // }
 
     // Terminal functions
-    const addToTerminal = (text) => {
-      if (!terminalView.value) return
-      
-      terminalView.value.dispatch({
-        changes: {
-          from: terminalView.value.state.doc.length,
-          insert: text
-        },
-        selection: { anchor: terminalView.value.state.doc.length + text.length }
-      })
-    }
+   const addToTerminal = (text) => {
+  if (!terminalView.value) return
+  
+  terminalView.value.dispatch({
+    changes: {
+      from: terminalView.value.state.doc.length,
+      insert: text
+    },
+    selection: { anchor: terminalView.value.state.doc.length + text.length }
+  })
+  
+  // Auto-scroll to bottom
+  const scrollDOM = terminalView.value.scrollDOM
+  scrollDOM.scrollTop = scrollDOM.scrollHeight
+}
 
     const executeTerminalCommand = (view) => {
       const doc = view.state.doc.toString()
