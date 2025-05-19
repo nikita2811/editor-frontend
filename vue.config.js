@@ -2,7 +2,7 @@ const { defineConfig } = require('@vue/cli-service')
 module.exports = defineConfig({
   transpileDependencies: true,
   devServer: {
-    host: '0.0.0.0',
+    host: 'https://code-editor-1-7n1e.onrender.com/',
     port: 8080,
     allowedHosts: 'all', // <- this is the key line
   }
